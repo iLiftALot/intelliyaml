@@ -51,6 +51,10 @@ def yamldataclass[T](
     """@yamldataclass() (with parens) → returns a callable that takes and returns type[T]"""
     ...
 
+# ?  @dataclass(match_args=True, kw_only=True, repr=True)
+# > ((type[_T@dataclass]) -> type[_T@dataclass])
+# ?  @yamldataclass(match_args=True, kw_only=True, repr=True)
+# > ((type[T@yamldataclass]) -> type[T@yamldataclass])
 
 @dataclass_transform()
 def yamldataclass[T](

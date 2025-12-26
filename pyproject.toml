@@ -21,6 +21,8 @@ dependencies = [
     "types-pyyaml>=6.0.12.20250915",
     "rich>=14.2.0",
     "dotenv>=0.9.9",
+    "intellilog @ file:///Users/nicholascorbin/CodeProjects/logger",
+    "intellipath @ file:///Users/nicholascorbin/CodeProjects/intellipath",
 ]
 requires-python = ">= 3.13"
 
@@ -29,9 +31,22 @@ requires-python = ">= 3.13"
 dev = [
     "rust-just",
     "pytest",
-    "intellilog",
-    "icecream"
+    "icecream",
+    "intellilog @ file:///Users/nicholascorbin/CodeProjects/logger",
+    "intellipath @ file:///Users/nicholascorbin/CodeProjects/intellipath",
 ]
+prod = [
+    "typer",
+    "pytest",
+    "pytest-cov",
+    "pyyaml>=6.0.3",
+    "types-pyyaml>=6.0.12.20250915",
+    "rich>=14.2.0",
+    "dotenv>=0.9.9",
+    "intellilog @ file:///Users/nicholascorbin/CodeProjects/logger",
+    "intellipath @ file:///Users/nicholascorbin/CodeProjects/intellipath",
+]
+
 
 
 [build-system]
@@ -79,4 +94,5 @@ addopts = "-vv -l -x"
 package = true
 
 [tool.uv.sources]
+intellipath = { path = "../intellipath", editable = true }
 intellilog = { path = "../logger", editable = true }
