@@ -1,0 +1,82 @@
+[project]
+name = "intelliyaml"
+version = "0.1.0"
+description = "Custom Yaml object."
+readme = "README.md"
+authors = [
+  {name = "Nicholas Corbin", email = "nickcorbin17@yahoo.com"}
+]
+maintainers = [
+  {name = "Nicholas Corbin", email = "nickcorbin17@yahoo.com"}
+]
+classifiers = [
+    # TODO
+]
+license = {text = "MIT"}
+dependencies = [
+    "typer",
+    "pytest",
+    "pytest-cov",
+    "pyyaml>=6.0.3",
+    "types-pyyaml>=6.0.12.20250915",
+    "rich>=14.2.0",
+    "dotenv>=0.9.9",
+]
+requires-python = ">= 3.13"
+
+
+[dependency-groups]
+dev = [
+    "rust-just",
+    "pytest",
+    "intellilog",
+    "icecream"
+]
+
+
+[build-system]
+requires = ["uv_build >= 0.9.15, <0.10.0"]
+build-backend = "uv_build"
+
+
+[project.urls]
+bugs = "https://github.com/iLiftALot/intelliyaml/issues"
+changelog = "https://github.com/iLiftALot/intelliyaml/blob/master/changelog.md"
+homepage = "https://github.com/iLiftALot/intelliyaml"
+
+[project.scripts]
+intelliyaml = "intelliyaml.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*", "*Test"]
+python_functions = ["test_*"]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)s] %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+log_file = "logs/pytest.log"
+log_file_mode = "a"
+log_file_level = "INFO"
+log_file_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+log_file_date_format = "%Y-%m-%d %H:%M:%S"
+addopts = "-vv -l -x"
+# Option	            Description
+# -v or -vv	          Verbose output
+# -l or --showlocals	Show local variables in tracebacks
+# -ll                 Show all locals in tracebacks
+# -s	                Don't capture stdout (show print statements)
+# --tb=long           Full tracebacks
+# --tb=short	        Shorter tracebacks
+# --tb=no	            No tracebacks
+# -x	                Stop on first failure
+# --ff	              Run failed tests first
+# -q	                Quiet mode
+# --durations=10	    Show 10 slowest tests
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+intellilog = { path = "../logger", editable = true }
