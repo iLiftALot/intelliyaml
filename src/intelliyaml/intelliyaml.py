@@ -7,41 +7,82 @@ import re
 from abc import ABC, abstractmethod
 from functools import partial, singledispatchmethod
 from os import getenv
-from pathlib import Path
 from typing import Any, ClassVar, Hashable, Self, overload
 
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.pretty import pprint
 from yaml import (
+    BaseDumper,
+    BaseLoader,
     Dumper,
     FullLoader,
     MappingNode,
+    SafeLoader,
     ScalarNode,
     UnsafeLoader,
     YAMLObject,
     YAMLObjectMetaclass,
     load
 )
+from intellipath import Path
 
 
 load_dotenv()  # Load environment variables from a .env file if present
 console = Console()
-pp = partial(pprint, console=console)
+pp = partial(pprint, console=console, expand_all=True)
 
 
 class YAMLObjectABCMeta(YAMLObjectMetaclass, type(ABC)):
     """Combined metaclass for YAMLObject + ABC support."""
 
-    def __init__(cls, name, bases, kwds):
+    def __init__(cls: BaseYmlLoader, name, bases, kwds) -> None:
+        pp(f"Initializing class {cls.__qualname__} with YAMLObjectABCMeta...")
+        # pp(bases)
+        # pp(kwds)
+        # exit()
         super().__init__(name, bases, kwds)
+
+        if "yaml_multi_tag" in kwds and kwds["yaml_multi_tag"] is not None:
+            if isinstance(cls.yaml_loader, list):
+                for loader in cls.yaml_loader:
+                    assert isinstance(loader, BaseLoader)
+                    loader.add_multi_constructor(
+                        f"tag:yaml.org,2002:{cls.yaml_multi_tag}:", cls.from_yaml
+                    )
+            else:
+                cls.yaml_loader.add_multi_constructor(
+                    f"tag:yaml.org,2002:{cls.yaml_multi_tag}:", cls.from_yaml
+                )
+
+            cls.yaml_dumper.add_representer(cls, cls.to_yaml)
+    
+    # def __call__(cls: BaseYmlLoader, *args, **kwargs) -> BaseYmlLoader:
+    #     """Create an instance of the class using the metaclass for YAMLObject + ABC support."""
+    #     pp(f"Creating instance of {cls.__qualname__} in YAMLObject.__call__ ...")
+    #     instance = super(YAMLObjectABCMeta, cls).__call__(*args, **kwargs)  # noqa: UP008
+    #     return instance
+    
+    # def __new__(cls: BaseYmlLoader, *args, **kwargs) -> BaseYmlLoader:
+    #     """Create a new instance of the class using the metaclass for YAMLObject + ABC support."""
+    #     pp(f"New instance of {cls.__qualname__} with YAMLObjectABCMeta...")
+    #     instance = super(YAMLObjectABCMeta, cls).__new__(cls, *args, **kwargs)  # noqa: UP008
+    #     return instance
+    
+    # def __post_init__(cls: BaseYmlLoader) -> None:
+    #     pp(f"Post init of {cls.__qualname__} with YAMLObjectABCMeta...")
+    #     if cls.yaml_loader is None:
+    #         raise ValueError(f"{cls.__qualname__} must define a yaml_loader.")
 
 
 class BaseYmlLoader(YAMLObject, ABC, metaclass=YAMLObjectABCMeta):
     """YAML loader that expands environment variables in the form ${VAR} or ${VAR:-default}"""
 
-    yaml_loader: ClassVar[type[FullLoader]] = FullLoader
-    yaml_dumper: ClassVar[type[Dumper]] = Dumper
+    yaml_tag: ClassVar[str | None] = None
+    yaml_multi_tag: ClassVar[str | None] = None
+    yaml_flow_style: ClassVar[bool | None] = None
+    yaml_loader: ClassVar[type[BaseLoader]] = FullLoader
+    yaml_dumper: ClassVar[type[BaseDumper]] = Dumper
 
     default_config_file: ClassVar[Path] = Path(
         # "/Users/nicholascorbin/CodeProjects/intelliyaml/src/intelliyaml/test_logging_config.yaml"
@@ -62,7 +103,7 @@ class BaseYmlLoader(YAMLObject, ABC, metaclass=YAMLObjectABCMeta):
         self.py_parser: YmlPyLoader = self.__class__._registry.get("YmlPyLoader")
 
         # Only log if not during class definition (avoid circular import)
-        if kwargs.get("from_init_subclass") is False:
+        if kwargs.get("from_init_subclass", True) is False:
             self.logger.debug({k: getattr(self, k) for k in dir(self)})
 
     def __init_subclass__(cls) -> None:
@@ -172,7 +213,6 @@ class YmlEnvLoader(BaseYmlLoader):
 
     @classmethod
     def from_yaml(cls, loader: FullLoader, node: ScalarNode) -> str:
-        print(f"{cls.__name__}.from_yaml called...")
         value: str = loader.construct_scalar(node=node)
         return cls.expand_string(value)
 
@@ -221,27 +261,22 @@ class YmlEnvLoader(BaseYmlLoader):
 class YmlPyLoader(BaseYmlLoader):
     """YAML loader with methods to return formatted data based on the provided arguments."""
 
-    yaml_tag: ClassVar[str] = "!!python/object/attr"
-    yaml_loader: ClassVar[type[UnsafeLoader]] = UnsafeLoader
+    yaml_multi_tag: ClassVar[str] = "python/object/attr"
+    yaml_loader: ClassVar[type[FullLoader]] = FullLoader
 
     def __init__(self, config_file: Path | None = None, **kwargs) -> None:
         super().__init__(config_file=config_file, **kwargs)
-        pp(self.yaml_loader.yaml_constructors)
-        pp(self.yaml_loader.yaml_multi_constructors)
-        exit()
 
     @classmethod
-    def from_yaml(cls, loader: UnsafeLoader, suffix, node: ScalarNode) -> str:
-        print(f"{cls.__name__}.from_yaml called...")
-        print(
-              f"{node.id=} | {node.tag=} | {node.style=}"
-              f"{node.start_mark=} | {node.end_mark=} | {node.value=}"
-        )
-        name = loader.construct_scalar(node=node)
-        obj = loader.find_python_name(name, node.start_mark)
-        print(f"{name=} ... {obj=}")
-        exit()
-        value = getattr(obj,)
+    def from_yaml(cls, loader: FullLoader, suffix: str, node: MappingNode) -> Path:
+        # n, o = suffix.rsplit(".", 1)
+        # print(f"{n=} | {o=}")
+        # print(f"{suffix=}")
+        ctx: dict[str, str] = loader.construct_mapping(node=node, deep=True)
+        obj: object = loader.find_python_name(suffix, node.start_mark)
+        attr: str = ctx["attr"]
+        file_name: str = ctx.get("file_name", "app.log")
+        value: Path = getattr(obj, attr) / file_name
         return value
 
     @classmethod
