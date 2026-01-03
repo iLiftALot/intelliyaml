@@ -28,10 +28,12 @@ from yaml import (
 )
 
 # Import from zero-dependency core module (avoids circular imports)
-# from intellilog._internal.intelliyaml._core import pp
-from intellipath import LogPath
+# from intellipath import LogPath
+from rich.pretty import pprint as pp
+from pkg_registry import lazy_import
 
-
+LogPath = lazy_import("intellipath", "LogPath")
+initLog = lazy_import("intellilog", "initLog")
 
 def _get_resolve_object():
     """Lazy import to avoid circular dependencies."""
@@ -111,6 +113,9 @@ class BaseYmlObject(Generic[_N, _L, _R], metaclass=YAMLObjectMetaclass):
         self.config_file: Path = config_file or self.default_config_file
         self._stream: TextIOWrapper | None = None
         self.data: dict[str, Any] = {}
+
+        self.log = initLog("intelliyaml", verbose=True)
+        self.log.debug({k: getattr(self, k) for k in dir(self) if not k.startswith("_")})
 
     @classmethod
     def from_yaml_multi(cls, loader: _L, suffix: str, node: _N) -> _R:
@@ -308,16 +313,16 @@ class YmlPyObject(BaseYmlObject[MappingNode, FullLoader, str]):
         return resolve_object(ctx, obj)
 
 
-# def main() -> None:
-#     with YmlPyObject() as ymlp:
-#         # pyLoaded = ymlp
-#         parsed_config = ymlp.data
+def main() -> None:
+    with YmlPyObject() as ymlp:
+        # pyLoaded = ymlp
+        parsed_config = ymlp.data
 
-#     # pp(pyLoaded.__class__._logger_registry)
-#     # pp(pyLoaded.__class__._yml_registry)
-#     pp(parsed_config)
-#     # pp(pyLoaded.load_yaml())
+    # pp(pyLoaded.__class__._logger_registry)
+    # pp(pyLoaded.__class__._yml_registry)
+    pp(parsed_config, expand_all=True)
+    # pp(pyLoaded.load_yaml())
 
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()

@@ -2,6 +2,8 @@
 src/**/_[!_]*[!core]*[!cli]*.py
 tests/**/_[!_]*.py
 *.backup.y*ml
+run.py
+_vendor/
 
 # Under construction files
 dev_*.py

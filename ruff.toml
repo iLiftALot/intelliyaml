@@ -53,6 +53,7 @@ extend-ignore = [
     "D",        # ignore missing docs
     "TC",       # false positives for local imports
     "E731",     # do not assign a lambda expression, use a def
+    "E402",     # module level import not at top of file
     "E501",     # line too long
     "I001",     # unsorted imports
     "TRY003",   # external messages in exceptions are too verbose

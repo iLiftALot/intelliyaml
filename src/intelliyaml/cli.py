@@ -11,9 +11,8 @@ console = Console()
 @app.command()
 def main():
     """Console script for intelliyaml."""
-    console.print("Replace this message by putting your code into "
-               "intelliyaml.cli.main")
-    console.print("See Typer documentation at https://typer.tiangolo.com/")
+    from intelliyaml.main import main as yml_main
+    yml_main()
 
 
 if __name__ == "__main__":

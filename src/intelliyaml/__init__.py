@@ -1,4 +1,7 @@
 """Top-level package for IntelliYaml."""
+from pkg_registry import init_vendor
+init_vendor()  # Auto-finds and adds _vendor to sys.path
+
 from .main import (
     YmlPyObject as YmlPyObject
 )

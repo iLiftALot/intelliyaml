@@ -3,38 +3,35 @@ name = "intelliyaml"
 version = "0.1.0"
 description = "Custom Yaml object."
 readme = "README.md"
-authors = [
-  {name = "Nicholas Corbin", email = "nickcorbin17@yahoo.com"}
-]
-maintainers = [
-  {name = "Nicholas Corbin", email = "nickcorbin17@yahoo.com"}
-]
+authors = [{ name = "Nicholas Corbin", email = "nickcorbin17@yahoo.com" }]
+maintainers = [{ name = "Nicholas Corbin", email = "nickcorbin17@yahoo.com" }]
 classifiers = [
-    # TODO
+  # TODO
 ]
-license = {text = "MIT"}
+license = { text = "MIT" }
 dependencies = [
-    "typer",
-    "pytest",
-    "pytest-cov",
-    "pyyaml>=6.0.3",
-    "types-pyyaml>=6.0.12.20250915",
-    "dotenv>=0.9.9",
-    "intellipath @ file:///Users/nicholascorbin/CodeProjects/intellipath",
-    "intellifunctools @ file:///Users/nicholascorbin/CodeProjects/intellifunctools",
-    "pydantic>=2.12.5",
+  "typer",
+  "pytest",
+  "pytest-cov",
+  "pyyaml>=6.0.3",
+  "types-pyyaml>=6.0.12.20250915",
+  "dotenv>=0.9.9",
+  "intellipath @ file:///Users/nicholascorbin/CodeProjects/intellipath",
+  "intellifunctools @ file:///Users/nicholascorbin/CodeProjects/intellifunctools",
+  "pydantic>=2.12.5",
 ]
 requires-python = ">= 3.13"
 
 
 [dependency-groups]
 dev = [
-    "rust-just",
-    "pytest",
-    "icecream",
-    "rich>=14.2.0",
+  "rust-just",
+  "pytest",
+  "icecream",
+  "pkg-registry @ file:///Users/nicholascorbin/CodeProjects/custom/pkg_registry",
+  "concurrent-log-handler>=0.9.25",
+  "rich>=14.2.0",
 ]
-
 
 
 [build-system]
@@ -84,3 +81,4 @@ package = true
 [tool.uv.sources]
 intellipath = { path = "../intellipath", editable = true }
 intellifunctools = { path = "../intellifunctools", editable = true }
+pkg-registry = { path = "../custom/pkg_registry", editable = true }
