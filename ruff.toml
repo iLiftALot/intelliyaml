@@ -61,7 +61,8 @@ extend-ignore = [
     "UP007",    # Check for type annotations that can be rewritten based on PEP 604 syntax.
     "UP015",    # Checks for redundant open mode arguments.
     "UP040",    # Checks for use of TypeAlias annotations and TypeAliasType assignments for declaring type aliases.
-    "UP045",    # Check for typing.Optional annotations that can be rewritten based on PEP 604 syntax.
+    "UP045",    # Check for typing.Optional annotations that can be rewritten.
+    "UP046",    # Checks for generic type annotations instead of using typed parameters.
     "A002",     # Checks for function arguments that use the same names as builtins
     "B905",     # `zip()` without an explicit `strict=` parameter
 ]

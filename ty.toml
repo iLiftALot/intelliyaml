@@ -3,4 +3,5 @@ python = "./.venv"
 python-version = "3.13"
 
 [src]
-include = ["**/src/*.py", "**/tests/*.py"]
+# include = ["**/src/*.py", "**/tests/*.py"]
+include = ["**/*.py"]

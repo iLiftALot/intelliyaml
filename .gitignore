@@ -1,9 +1,10 @@
-# From https://github.com/github/gitignore/blob/main/Python.gitignore 2025-07-30
+# Miscellaneous files
+src/**/_[!_]*[!core]*[!cli]*.py
+tests/**/_[!_]*.py
+*.backup.y*ml
 
-# Miscellaneous files 
-_[!_]*.py
-*.yml
-*.yaml
+# Under construction files
+dev_*.py
 
 # Virtual environments
 .venv

@@ -1,11 +1,14 @@
 """Top-level package for IntelliYaml."""
-from .intelliyaml import YmlEnvLoader as YmlEnvLoader
+from .main import (
+    YmlPyObject as YmlPyObject
+)
 from .decorators import yamldataclass as yamldataclass
 
+__package__ = "intelliyaml"
 __author__ = """Nicholas Corbin"""
 __email__ = 'nickcorbin17@yahoo.com'
 
 __all__ = [
-    "YmlEnvLoader",
-    "yamldataclass",
+    "YmlPyObject",
+    "yamldataclass"
 ]

@@ -1,0 +1,142 @@
+# Python logging configuration (for use with logging.config.dictConfig)
+# Required: version must be 1
+version: 1
+# Disable existing loggers to prevent duplicate handlers
+disable_existing_loggers: false
+
+formatters:
+  # Standard formatter (uses class: for built-in types)
+  standard:
+    class: logging.Formatter
+    format: "[ %(asctime)s - %(levelname)s - %(name)s - %(filename)s : %(lineno)d in %(funcName)s ]\n%(message)s"
+    datefmt: "%y.%m.%d-%H:%M:%S"
+
+  # Custom formatter using factory callable (uses () for custom classes)
+  intellilog_file:
+    (): intellilog.formatters.FileLoggerFormatter
+    format: "%(name)s 〰 %(asctime)s 〰 %(levelname)s 〰︎ %(filename)s ⋯ %(lineno)d 📁 %(funcName)s\n%(message)s\n{msg_sep}\n"
+    datefmt: "%y.%m.%d-%H:%M:%S"
+
+  intellilog_console:
+    (): intellilog.formatters.ConsoleLoggerFormatter
+    format: "%(name)s 〰 %(asctime)s 〰 %(levelname)s 〰︎ %(filename)s ⋯ %(lineno)d 📁 %(funcName)s\n%(message)s\n{msg_sep}\n"
+    datefmt: "%y.%m.%d-%H:%M:%S"
+
+filters:
+  standard_filter:
+    class: logging.Filter
+    name: root
+
+  # Custom filter - note the correct import path
+  intellilog_filter:
+    (): intellilog._logging.ExcludeLoggerFilter
+    logger_name: intellilog
+    verbose: true
+
+  _internal_logger_file_filter:
+    (): intellilog._logging.ExcludeLoggerFilter
+    logger_name: _internal_logger
+    verbose: true
+  
+  _internal_logger_console_filter:
+    (): intellilog._logging.ExcludeLoggerFilter
+    logger_name: _internal_logger
+    verbose: false
+
+handlers:
+  # Console handler with standard formatter
+  console_handler:
+    class: logging.StreamHandler
+    formatter: standard
+    level: DEBUG
+
+  # Rotating file handler (built-in)
+  file_handler:
+    class: logging.handlers.RotatingFileHandler
+    formatter: standard
+    level: DEBUG
+    filename: !!python/object:intellipath.LogPath
+      chain:
+        - get: LOGS
+        - op: "/"
+          value: "app.log"
+    maxBytes: 5242880  # 5 * 1024 * 1024 = 5MB (YAML doesn't evaluate expressions)
+    backupCount: 5
+
+  # Custom file handler using factory callable
+  intellilog_file_handler:
+    (): intellilog.base.BaseLoggerFileHandler
+    formatter: intellilog_file
+    filters:
+      - intellilog_filter
+    filename: !!python/object:intellipath.LogPath
+      debug: true
+      chain:
+        - get: LOGS
+        - op: "/"
+          value: "intellilog.log"
+    maxBytes: 5242880
+    backupCount: 5
+    level: DEBUG
+  
+  # Custom console handler
+  intellilog_console_handler:
+    (): intellilog.base.BaseLoggerConsoleHandler
+    formatter: intellilog_console
+    filters:
+      - intellilog_filter
+    level: DEBUG
+
+  _internal_logger_file_handler:
+    (): intellilog.base.BaseLoggerFileHandler
+    formatter: intellilog_file
+    filters:
+      - _internal_logger_file_filter
+    filename: !!python/object:intellipath.LogPath
+      expr: 'LOGS / "_internal_logger.log"'
+    maxBytes: 5242880
+    backupCount: 5
+    level: DEBUG
+
+  _internal_logger_console_handler:
+    (): intellilog.base.BaseLoggerConsoleHandler
+    formatter: intellilog_console
+    filters:
+      - _internal_logger_console_filter
+    level: DEBUG
+
+# Root logger configuration (special - at top level, not under loggers)
+root:
+  level: DEBUG
+  filters:
+    - standard_filter
+  handlers:
+    - console_handler
+    - file_handler
+  propagate: false
+
+loggers:
+  _internal_logger:
+    level: DEBUG
+    handlers:
+      - _internal_logger_console_handler
+      - _internal_logger_file_handler
+    # Already set in handlers
+    # filters:
+    #   - _internal_logger_file_filter
+    #   - _internal_logger_console_filter
+    propagate: false
+    
+  intellilog:
+    level: DEBUG
+    handlers:
+      - intellilog_console_handler
+      - intellilog_file_handler
+    propagate: false
+
+  intelliyaml:
+    level: DEBUG
+    handlers:
+      - _internal_logger_console_handler
+      - _internal_logger_file_handler
+    propagate: false

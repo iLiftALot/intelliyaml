@@ -1,0 +1,283 @@
+# =============================================================================
+# INTELLIYAML EXPRESSION RESOLVER - COMPLETE USAGE EXAMPLES
+# =============================================================================
+# Tag format: !!python/object:module.path.ClassName
+# All examples assume a class like:
+#   class LogPath:
+#       LOGS = Path("/var/log")
+#       DATA = Path("/var/data")
+#       def get_path(self, name): return self.LOGS / name
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. SIMPLE ATTRIBUTE ACCESS
+# -----------------------------------------------------------------------------
+# Get a single attribute from the resolved object
+
+# Using "get" key:
+log_dir: !!python/object:intellipath.intellipath.LogPath
+  get: LOGS
+# Result: /var/log
+
+# Using "attr" key (alias for "get"):
+data_dir: !!python/object:intellipath.intellipath.LogPath
+  attr: DATA
+# Result: /var/data
+
+
+# -----------------------------------------------------------------------------
+# 2. METHOD CALLS
+# -----------------------------------------------------------------------------
+# Call a method on the resolved object
+
+# Call with no arguments:
+default_path: !!python/object:intellipath.intellipath.LogPath
+  call: get_default_path
+# Result: obj.get_default_path()
+
+# Call with positional arguments:
+named_path: !!python/object:intellipath.intellipath.LogPath
+  call: get_path
+  args: ["app.log"]
+# Result: obj.get_path("app.log")
+
+# Call with keyword arguments:
+configured_path: !!python/object:intellipath.intellipath.LogPath
+  call: get_path
+  kwargs:
+    name: "app.log"
+    create: true
+# Result: obj.get_path(name="app.log", create=True)
+
+# Call with both positional and keyword arguments:
+full_call: !!python/object:intellipath.intellipath.LogPath
+  call: build_path
+  args: ["logs", "subdir"]
+  kwargs:
+    extension: ".log"
+    timestamp: true
+# Result: obj.build_path("logs", "subdir", extension=".log", timestamp=True)
+
+# Call the object itself (when object is callable):
+callable_obj: !!python/object:some.module.PathFactory
+  call: null
+  args: ["/var/log"]
+# Result: PathFactory("/var/log")
+
+
+# -----------------------------------------------------------------------------
+# 3. BINARY OPERATORS
+# -----------------------------------------------------------------------------
+# Apply operators like /, +, *, etc. (useful for Path operations)
+
+# Division operator (path joining):
+joined_path: !!python/object:intellipath.intellipath.LogPath
+  chain:
+    - get: LOGS
+    - op: "/"
+      value: "app.log"
+# Result: /var/log/app.log
+
+# Supported operators:
+#   "/"  - true division (or path join for Path objects)
+#   "+"  - addition
+#   "-"  - subtraction
+#   "*"  - multiplication
+#   "//" - floor division
+#   "%"  - modulo
+#   "**" - power
+#   "@"  - matrix multiplication
+#   "|"  - bitwise OR
+#   "&"  - bitwise AND
+
+
+# -----------------------------------------------------------------------------
+# 4. INDEXING
+# -----------------------------------------------------------------------------
+# Access items by key or index
+
+# Dictionary key access:
+config_value: !!python/object:some.module.ConfigLoader
+  chain:
+    - get: settings
+    - index: "database_url"
+# Result: obj.settings["database_url"]
+
+# List index access:
+first_item: !!python/object:some.module.ListProvider
+  chain:
+    - get: items
+    - index: 0
+# Result: obj.items[0]
+
+# Nested indexing:
+nested_value: !!python/object:some.module.ConfigLoader
+  chain:
+    - get: config
+    - index: "database"
+    - index: "host"
+# Result: obj.config["database"]["host"]
+
+
+# -----------------------------------------------------------------------------
+# 5. LITERAL VALUES
+# -----------------------------------------------------------------------------
+# Return a literal value (useful in chains)
+
+# String literal:
+static_path: !!python/object:intellipath.intellipath.LogPath
+  value: "/static/path/file.log"
+# Result: "/static/path/file.log"
+
+# Used in operator chains:
+dynamic_path: !!python/object:intellipath.intellipath.LogPath
+  chain:
+    - get: LOGS
+    - op: "/"
+      value: "subdir"
+    - op: "/"
+      value: "app.log"
+# Result: /var/log/subdir/app.log
+
+
+# -----------------------------------------------------------------------------
+# 6. CHAINED OPERATIONS
+# -----------------------------------------------------------------------------
+# Execute multiple operations sequentially
+
+# Simple chain (attribute + operator):
+filename: !!python/object:intellipath.intellipath.LogPath
+  chain:
+    - get: LOGS
+    - op: "/"
+      value: "app.log"
+# Result: /var/log/app.log
+
+# Complex chain (attribute + method + operator):
+complex_path: !!python/object:intellipath.intellipath.LogPath
+  chain:
+    - get: LOGS
+    - call: resolve
+    - op: "/"
+      value: "processed"
+    - op: "/"
+      value: "output.log"
+# Result: obj.LOGS.resolve() / "processed" / "output.log"
+
+# Chain with indexing:
+indexed_chain: !!python/object:some.module.ConfigProvider
+  chain:
+    - get: paths
+    - index: "log_dirs"
+    - index: 0
+    - op: "/"
+      value: "app.log"
+# Result: obj.paths["log_dirs"][0] / "app.log"
+
+# Chain with method calls:
+method_chain: !!python/object:some.module.PathBuilder
+  chain:
+    - get: base
+    - call: with_suffix
+      args: [".txt"]
+    - call: resolve
+# Result: obj.base.with_suffix(".txt").resolve()
+
+
+# -----------------------------------------------------------------------------
+# 7. EXPRESSION STRINGS (DSL)
+# -----------------------------------------------------------------------------
+# Use a string expression for concise syntax
+
+# Simple attribute + operator:
+expr_path: !!python/object:intellipath.intellipath.LogPath
+  expr: 'LOGS / "app.log"'
+# Result: obj.LOGS / "app.log"
+
+# Chained attribute access:
+nested_attr: !!python/object:some.module.Config
+  expr: 'settings.database.host'
+# Result: obj.settings.database.host
+
+# Method calls in expressions:
+method_expr: !!python/object:intellipath.intellipath.LogPath
+  expr: 'LOGS.resolve()'
+# Result: obj.LOGS.resolve()
+
+# Complex expression:
+complex_expr: !!python/object:intellipath.intellipath.LogPath
+  expr: 'LOGS / "subdir" / "app.log"'
+# Result: obj.LOGS / "subdir" / "app.log"
+
+
+# -----------------------------------------------------------------------------
+# 8. DEBUGGING
+# -----------------------------------------------------------------------------
+# Enable debug output for troubleshooting
+
+debug_path: !!python/object:intellipath.intellipath.LogPath
+  _debug: true
+  chain:
+    - get: LOGS
+    - op: "/"
+      value: "debug.log"
+# Prints each step to stdout during resolution
+
+
+# -----------------------------------------------------------------------------
+# 9. REAL-WORLD EXAMPLES
+# -----------------------------------------------------------------------------
+
+# Logging configuration handler:
+handlers:
+  file_handler:
+    class: logging.handlers.RotatingFileHandler
+    formatter: standard
+    level: DEBUG
+    filename: !!python/object:intellipath.intellipath.LogPath
+      chain:
+        - get: LOGS
+        - op: "/"
+          value: "app.log"
+    maxBytes: 5242880
+    backupCount: 5
+
+# Database configuration:
+database:
+  connection_string: !!python/object:myapp.config.DatabaseConfig
+    chain:
+      - get: connections
+      - index: "primary"
+      - call: get_connection_string
+        kwargs:
+          include_password: false
+
+# Environment-specific paths:
+paths:
+  cache_dir: !!python/object:myapp.paths.AppPaths
+    chain:
+      - get: CACHE
+      - call: mkdir
+        kwargs:
+          parents: true
+          exist_ok: true
+
+# Using factory methods:
+service:
+  client: !!python/object:myapp.clients.APIClient
+    call: from_env
+    kwargs:
+      timeout: 30
+      retries: 3
+
+
+# -----------------------------------------------------------------------------
+# 10. LEGACY SYNTAX (Backward Compatible)
+# -----------------------------------------------------------------------------
+# Original simple format still works
+
+legacy_path: !!python/object:intellipath.intellipath.LogPath
+  attr: LOGS
+  args: []
+  kwargs: {}
+# Result: obj.LOGS (for attributes) or obj("LOGS") (for callables)
