@@ -24,6 +24,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Clone sibling dependencies
+      run: |
+        git clone https://github.com/iLiftALot/intellipath.git ../intellipath
+        git clone https://github.com/iLiftALot/intellifunctools.git ../intellifunctools
+        git clone https://github.com/iLiftALot/pkg-registry.git ../custom/pkg_registry
     - name: Install uv
       uses: astral-sh/setup-uv@v5
       with:
