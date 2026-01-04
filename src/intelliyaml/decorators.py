@@ -1,13 +1,6 @@
 import yaml
 from dataclasses import dataclass, asdict
 from typing import Callable, overload, dataclass_transform
-from functools import partial
-from rich.console import Console
-from rich.pretty import pprint
-
-
-console = Console()
-pp = partial(pprint, console=console, expand_all=True)
 
 
 @dataclass_transform()
@@ -112,7 +105,7 @@ def yamldataclass[T](
 
         return cls
 
-    # Handle both @yaml_dataclass and @yaml_dataclass() syntax
+    # Handle both @yamldataclass and @yamldataclass() syntax
     if cls is None:
         return wrap
     return wrap(cls)

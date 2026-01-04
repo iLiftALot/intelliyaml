@@ -46,6 +46,7 @@ homepage = "https://github.com/iLiftALot/intelliyaml"
 
 [project.scripts]
 intelliyaml = "intelliyaml.cli:app"
+yaml = "intelliyaml.cli:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

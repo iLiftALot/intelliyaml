@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from io import TextIOWrapper
 import json
 import re
-# from abc import ABC, ABCMeta, abstractmethod
-from functools import singledispatchmethod
-from pathlib import Path  # Use stdlib Path to avoid circular imports
-
-# from logging import Logger
-from os import getenv
 import sys
+from functools import singledispatchmethod
+from io import TextIOWrapper
+from os import getenv
+from pathlib import Path
 from typing import Any, ClassVar, Generic, Hashable, Self, TypeVar
+
+from pkg_registry import lazy_import
+# from rich.pretty import pprint as pp
 from yaml import (
     BaseDumper,
     BaseLoader,
@@ -27,19 +27,18 @@ from yaml import (
     load,
 )
 
-# Import from zero-dependency core module (avoids circular imports)
-# from intellipath import LogPath
-from rich.pretty import pprint as pp
-from pkg_registry import lazy_import
 
 LogPath = lazy_import("intellipath", "LogPath")
 initLog = lazy_import("intellilog", "initLog")
+
 
 def _get_resolve_object():
     """Lazy import to avoid circular dependencies."""
     # from intellilog._internal.intelliyaml.utils import resolve_object
     from intelliyaml.utils import resolve_object
+
     return resolve_object
+
 
 type AnyLoader = BaseLoader | FullLoader | SafeLoader | Loader
 type AnyDumper = BaseDumper | Dumper | SafeDumper
@@ -51,10 +50,7 @@ _R = TypeVar("_R", bound=Any)
 
 class YAMLObjectMetaclass(type):
     def __new__(
-        mcls,
-        name: str,
-        bases: tuple[type, ...],
-        kwds: dict[str, Any]
+        mcls, name: str, bases: tuple[type, ...], kwds: dict[str, Any]
     ) -> type[BaseYmlObject]:
         cls = super().__new__(mcls, name, bases, kwds)
 
@@ -64,9 +60,7 @@ class YAMLObjectMetaclass(type):
                     assert isinstance(loader, BaseLoader)
                     loader.add_constructor(cls.yaml_tag, cls.from_yaml)
             else:
-                cls.yaml_loader.add_constructor(
-                    cls.yaml_tag, cls.from_yaml
-                )
+                cls.yaml_loader.add_constructor(cls.yaml_tag, cls.from_yaml)
 
             cls.yaml_dumper.add_representer(cls, cls.to_yaml)
 
@@ -75,13 +69,11 @@ class YAMLObjectMetaclass(type):
                 for loader in cls.yaml_loader:
                     assert isinstance(loader, BaseLoader)
                     loader.add_multi_constructor(
-                        f"tag:yaml.org,2002:{cls.yaml_multi_tag}:",
-                        cls.from_yaml_multi,
+                        f"tag:yaml.org,2002:{cls.yaml_multi_tag}:", cls.from_yaml_multi
                     )
             else:
                 cls.yaml_loader.add_multi_constructor(
-                    f"tag:yaml.org,2002:{cls.yaml_multi_tag}:",
-                    cls.from_yaml_multi,
+                    f"tag:yaml.org,2002:{cls.yaml_multi_tag}:", cls.from_yaml_multi
                 )
 
             cls.yaml_dumper.add_representer(cls, cls.to_yaml)
@@ -90,7 +82,7 @@ class YAMLObjectMetaclass(type):
             cls.yaml_loader.add_implicit_resolver(
                 tag=cls.yaml_tag, regexp=cls.regex_pattern, first=None
             )
-        
+
         return cls
 
 
@@ -114,8 +106,8 @@ class BaseYmlObject(Generic[_N, _L, _R], metaclass=YAMLObjectMetaclass):
         self._stream: TextIOWrapper | None = None
         self.data: dict[str, Any] = {}
 
-        self.log = initLog("intelliyaml", verbose=True)
-        self.log.debug({k: getattr(self, k) for k in dir(self) if not k.startswith("_")})
+        self.log = initLog("intelliyaml", verbose=True, console_level=None)
+        self.log.debug({k: getattr(self, k) for k in dir(self)})
 
     @classmethod
     def from_yaml_multi(cls, loader: _L, suffix: str, node: _N) -> _R:
@@ -145,9 +137,7 @@ class BaseYmlObject(Generic[_N, _L, _R], metaclass=YAMLObjectMetaclass):
             loader: The YAML loader instance
             node: The YAML node to construct from
         """
-        raise NotImplementedError(
-            f"{cls.__qualname__} must implement from_yaml method"
-        )
+        raise NotImplementedError(f"{cls.__qualname__} must implement from_yaml method")
 
     @classmethod
     def to_yaml(cls, dumper: Dumper, data: Any) -> MappingNode:  # ScalarNode:
@@ -226,7 +216,7 @@ class BaseYmlObject(Generic[_N, _L, _R], metaclass=YAMLObjectMetaclass):
         backup_path = backup_file or self.config_file.with_suffix(".backup.yaml")
         with backup_path.open("w") as backup:
             backup.write(original_content)
-    
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__qualname__} config_file={getattr(self, 'config_file', None)!r}>"
 
@@ -282,10 +272,7 @@ class YmlEnvObject(BaseYmlObject[ScalarNode, FullLoader, str]):
 class YmlPyObject(BaseYmlObject[MappingNode, FullLoader, str]):
     yaml_multi_tag: ClassVar[str] = "python/object"
 
-    def __init__(
-        self,
-        config_file: Path | None = None,
-    ) -> None:
+    def __init__(self, config_file: Path | None = None) -> None:
         super().__init__(config_file=config_file)
 
     @classmethod
@@ -318,10 +305,8 @@ def main() -> None:
         # pyLoaded = ymlp
         parsed_config = ymlp.data
 
-    # pp(pyLoaded.__class__._logger_registry)
-    # pp(pyLoaded.__class__._yml_registry)
-    pp(parsed_config, expand_all=True)
-    # pp(pyLoaded.load_yaml())
+    logger = initLog("intelliyaml.main")
+    logger.debug(parsed_config)
 
 
 if __name__ == "__main__":
