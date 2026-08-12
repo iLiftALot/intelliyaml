@@ -6,7 +6,7 @@ run.py
 _vendor/
 
 # Under construction files
-dev_*.py
+\**.py
 
 # Virtual environments
 .venv

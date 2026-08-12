@@ -7,7 +7,7 @@ import re
 # from dataclasses import dataclass, field
 from pydantic import BaseModel, Field, model_validator
 from typing import Any, ClassVar, Literal, Self, cast, get_args
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 
 
 # ============================================================================
@@ -19,69 +19,64 @@ type OperationKind = Literal["get", "call", "op", "index", "value", "chain", "ex
 OpValue = Literal["/", "+", "-", "*", "//", "%", "**", "@", "|", "&"]
 
 
-class ValueOperation(BaseModel):
+class OperationBase(BaseModel):
+    debug: bool = Field(default=False)
+
+
+class ValueOperation(OperationBase):
     """Literal value operation."""
 
     value: Any
-    debug: bool = Field(default=False)
 
 
-class GetOperation(BaseModel):
+class GetOperation(OperationBase):
     """Get attribute operation."""
 
     get: str
-    debug: bool = Field(default=False)
 
 
-class CallOperation(BaseModel):
+class CallOperation(OperationBase):
     """Call method operation."""
 
     call: str | None = None  # None means call the object itself
     args: tuple[Any, ...] = Field(default_factory=tuple)
     kwargs: dict[str, Any] = Field(default_factory=dict)
-    debug: bool = Field(default=False)
 
 
-class OpOperation(BaseModel):
+class OpOperation(OperationBase):
     """Binary operator operation."""
 
     op: OpValue
     value: Any | None = None
-    debug: bool = Field(default=False)
 
 
-class IndexOperation(BaseModel):
+class IndexOperation(OperationBase):
     """Indexing operation."""
 
     index: str | int
-    debug: bool = Field(default=False)
 
 
-class ExpressionOperation(BaseModel):
+class ExpressionOperation(OperationBase):
     """Expression operation."""
 
     expr: str
-    debug: bool = Field(default=False)
 
 
-type SingleOperationType = (
+class ChainOperation(OperationBase):
+    """Chain of operations."""
+
+    chain: list[OperationType]
+
+
+type OperationType = (
     ValueOperation
     | GetOperation
     | CallOperation
     | OpOperation
     | IndexOperation
     | ExpressionOperation
+    | ChainOperation
 )
-
-
-class ChainOperation(BaseModel):
-    """Chain of operations."""
-
-    chain: list[SingleOperationType]
-    debug: bool = Field(default=False)
-
-
-type OperationType = SingleOperationType | ChainOperation
 
 
 class Operation(BaseModel):
@@ -94,20 +89,23 @@ class Operation(BaseModel):
     def validate_operation(self) -> Self:
         kind = self.kind
         op = self.operation
+
         if kind == "chain" and not isinstance(op, ChainOperation):
             raise ValueError(
                 f"Operation must be a list of SingleOperationType for kind 'chain'\n...got {type(op)} instead\n...with value:\n{op}"
             )
+
         if kind != "chain" and isinstance(op, ChainOperation):
             raise ValueError(
                 f"Operation cannot be a list of SingleOperationType for non-'chain' kinds\n...got {type(op)} instead\n...with value:\n{op}"
             )
+
         return self
 
 
 class ExpressionResolver:
     """
-    A powerful expression-based resolver for dynamic Python object resolution.
+    A powerful expression-based resolver for dynamic Python object resolution in YAML files.
 
     Supports:
         - Attribute access: {"get": "attr_name"}
@@ -117,7 +115,8 @@ class ExpressionResolver:
         - Indexing: {"index": "key"} or {"index": 0}
         - Direct value: {"value": "literal_value"}
 
-    Example YAML:
+    .. Example::
+        .. code:: yaml
         filename: !!python/object:intellipath.LogPath
           chain:
             - get: LOGS
@@ -156,8 +155,6 @@ class ExpressionResolver:
             - "value": Return a literal value
             - "expr": Parse and evaluate a string expression
         """
-        # Single operation resolution
-        # return self._resolve_single(operation)
         raise NotImplementedError(f"Unsupported operation type: {type(operation)}")
 
     @_resolve.register(ChainOperation)
@@ -192,8 +189,10 @@ class ExpressionResolver:
         if isinstance(operation, GetOperation):
             attr_name = operation.get
             result = getattr(self.obj, attr_name)
+
             if operation.debug:
                 print(f"  getattr({self.obj}, {attr_name!r}) -> {result}")
+                
             return result
 
         # Method/callable invocation
@@ -213,6 +212,7 @@ class ExpressionResolver:
 
             if operation.debug:
                 print(f"  {self.obj}.{method_name}(*{args}, **{kwargs}) -> {result}")
+
             return result
 
         # Binary operator
@@ -220,26 +220,45 @@ class ExpressionResolver:
             op_name = operation.op
             value = operation.value
             op_func = self.OPERATORS.get(op_name)
+
             if op_func is None:
                 raise ValueError(f"Unsupported operator: {op_name}")
+
             result = op_func(self.obj, value)
+
             if operation.debug:
                 print(f"  {self.obj} {op_name} {value} -> {result}")
+
             return result
 
         # Indexing
         if isinstance(operation, IndexOperation):
-            assert hasattr(self.obj, "__getitem__"), f"Object {self.obj} is not indexable"
             key = operation.index
-            result = self.obj[key]
+
+            try:
+                if isinstance(self.obj, Mapping):
+                    result = self.obj[key]
+                elif isinstance(self.obj, Sequence):
+                    if not isinstance(key, int):
+                        key = self.obj.index(key, 0, -1)
+                        result = self.obj[key]
+                    else:
+                        result = self.obj[key]
+                else:
+                    raise TypeError(f"Object {self.obj!r} is not indexable with key {key!r}")
+            except (KeyError, IndexError, ValueError, TypeError) as e:
+                raise ValueError(f"Failed to index {self.obj!r} with key {key!r}: {e}") from e
+
             if operation.debug:
                 print(f"  {self.obj}[{key!r}] -> {result}")
+
             return result
 
         # Literal value (passthrough)
         if isinstance(operation, ValueOperation):
             if operation.debug:
                 print(f"  Returning literal value: {operation.value!r}")
+
             return operation.value
 
         raise ValueError(f"Unknown operation: {operation}")
@@ -396,25 +415,24 @@ class ExpressionParser:
 def operation_builder(ctx: dict) -> Operation:
     """Build an Operation object from a context dictionary."""
 
-    op_type_map: dict[OperationKind, type[SingleOperationType]] = {
+    op_type_map: dict[OperationKind, type[OperationType]] = {
         "get": GetOperation,
         "call": CallOperation,
         "op": OpOperation,
         "index": IndexOperation,
         "expr": ExpressionOperation,
         "value": ValueOperation,
-    }  # ty:ignore[invalid-assignment]
+    }
 
     if "chain" in ctx:
-        chain_ops = cast(
-            list[SingleOperationType],
-            [operation_builder(op_ctx).operation for op_ctx in ctx["chain"]],
-        )
+        chain_ops: list[OperationType] = [
+            operation_builder(op_ctx).operation for op_ctx in ctx["chain"]
+        ]
         return Operation(kind="chain", operation=ChainOperation(chain=chain_ops))
-    else:
-        for key, cls in op_type_map.items():
-            if key in ctx:
-                return Operation(kind=key, operation=cls(**ctx))
+
+    for key, cls in op_type_map.items():
+        if key in ctx:
+            return Operation(kind=key, operation=cls(**ctx))
 
     raise ValueError(f"Unknown operation context: {ctx}")
 

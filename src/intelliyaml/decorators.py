@@ -1,12 +1,16 @@
+from dataclasses import asdict, dataclass  # , field
+
+# from pydantic import Field, PrivateAttr
+from typing import Callable, dataclass_transform, overload
+
 import yaml
-from dataclasses import dataclass, asdict
-from typing import Callable, overload, dataclass_transform
 
 
-@dataclass_transform()
+@dataclass_transform()  # (field_specifiers=(field, Field, PrivateAttr))
 @overload
 def yamldataclass[T](
     cls: type[T],
+    /,
     *,
     yaml_tag: str | None = None,
     init: bool = True,
@@ -21,13 +25,13 @@ def yamldataclass[T](
     weakref_slot: bool = False,
 ) -> type[T]:
     """@yamldataclass (no parens) → receives the class directly, returns type[T]"""
-    ...
 
 
-@dataclass_transform()
+@dataclass_transform()  # (field_specifiers=(field, Field, PrivateAttr))
 @overload
 def yamldataclass[T](
-    cls: None = None,
+    cls: None = ...,
+    /,
     *,
     yaml_tag: str | None = None,
     init: bool = True,
@@ -42,16 +46,18 @@ def yamldataclass[T](
     weakref_slot: bool = False,
 ) -> Callable[[type[T]], type[T]]:
     """@yamldataclass() (with parens) → returns a callable that takes and returns type[T]"""
-    ...
+
 
 # ?  @dataclass(match_args=True, kw_only=True, repr=True)
 # > ((type[_T@dataclass]) -> type[_T@dataclass])
 # ?  @yamldataclass(match_args=True, kw_only=True, repr=True)
 # > ((type[T@yamldataclass]) -> type[T@yamldataclass])
 
-@dataclass_transform()
+
+@dataclass_transform()  # (field_specifiers=(field, Field, PrivateAttr))
 def yamldataclass[T](
     cls: type[T] | None = None,
+    /,
     *,
     yaml_tag: str | None = None,
     init: bool = True,
@@ -67,7 +73,7 @@ def yamldataclass[T](
 ) -> type[T] | Callable[[type[T]], type[T]]:
     """Decorator to create a YAML-serializable dataclass."""
 
-    def wrap(cls):
+    def wrap(cls) -> type[T]:
         # Apply dataclass decorator first with all options
         dataclass_decorator = dataclass(
             init=init,
@@ -108,4 +114,5 @@ def yamldataclass[T](
     # Handle both @yamldataclass and @yamldataclass() syntax
     if cls is None:
         return wrap
+
     return wrap(cls)

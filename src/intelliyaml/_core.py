@@ -1,14 +1,3 @@
-"""
-Core module for intelliyaml with ZERO external package dependencies.
-
-This module should NEVER import from:
-- intellilog
-- intellipath  
-- intellifunctools
-- or any other custom packages
-
-Only standard library and third-party packages (dotenv, pydantic, yaml, etc.) are allowed.
-"""
 from __future__ import annotations
 
 from pathlib import Path

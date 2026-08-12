@@ -25,6 +25,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Clone sibling dependencies
+      # > TODO: Create github secret for private repos
       run: |
         git clone https://github.com/iLiftALot/intellipath.git ../intellipath
         git clone https://github.com/iLiftALot/intellifunctools.git ../intellifunctools

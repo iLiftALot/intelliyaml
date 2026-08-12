@@ -21,6 +21,8 @@ formatters:
     (): intellilog.formatters.ConsoleLoggerFormatter
     format: "%(name)s 〰 %(asctime)s 〰 %(levelname)s 〰︎ %(filename)s ⋯ %(lineno)d 📁 %(funcName)s\n%(message)s\n{msg_sep}\n"
     datefmt: "%y.%m.%d-%H:%M:%S"
+    defaults:
+      ipython_profile: IPYTHON_PROFILE
 
 filters:
   standard_filter:
@@ -37,7 +39,7 @@ filters:
     (): intellilog._logging.ExcludeLoggerFilter
     logger_name: _internal_logger
     verbose: true
-  
+
   _internal_logger_console_filter:
     (): intellilog._logging.ExcludeLoggerFilter
     logger_name: _internal_logger
@@ -78,7 +80,7 @@ handlers:
     maxBytes: 5242880
     backupCount: 5
     level: DEBUG
-  
+
   # Custom console handler
   intellilog_console_handler:
     (): intellilog.base.BaseLoggerConsoleHandler
@@ -93,7 +95,12 @@ handlers:
     filters:
       - _internal_logger_file_filter
     filename: !!python/object:intellipath.LogPath
-      expr: 'LOGS / "_internal_logger.log"'
+      chain:
+        - get: LOGS
+        - op: "/"
+          value: !!python/object:intellipath.LogPath
+            expr: 'ROOT.name + ".log"'
+      # expr: 'LOGS / "_internal_logger.log"'
     maxBytes: 5242880
     backupCount: 5
     level: DEBUG
@@ -126,7 +133,7 @@ loggers:
     #   - _internal_logger_file_filter
     #   - _internal_logger_console_filter
     propagate: false
-    
+
   intellilog:
     level: DEBUG
     handlers:
