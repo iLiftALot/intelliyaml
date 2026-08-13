@@ -22,7 +22,7 @@ formatters:
     format: "%(name)s 〰 %(asctime)s 〰 %(levelname)s 〰︎ %(filename)s ⋯ %(lineno)d 📁 %(funcName)s\n%(message)s\n{msg_sep}\n"
     datefmt: "%y.%m.%d-%H:%M:%S"
     defaults:
-      ipython_profile: IPYTHON_PROFILE
+      shell: ${SHELL:-unknown_shell}
 
 filters:
   standard_filter:

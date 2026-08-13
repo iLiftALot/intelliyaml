@@ -192,7 +192,7 @@ class ExpressionResolver:
 
             if operation.debug:
                 print(f"  getattr({self.obj}, {attr_name!r}) -> {result}")
-                
+
             return result
 
         # Method/callable invocation
