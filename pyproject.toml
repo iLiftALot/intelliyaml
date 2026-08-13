@@ -1,6 +1,6 @@
 [project]
 name = "intelliyaml"
-version = "0.1.0"
+version = "1.0.0"
 description = "YAML helpers for environment expansion and Python object resolution."
 readme = "README.md"
 authors = [{ name = "Nicholas Corbin", email = "nickcorbin17@yahoo.com" }]
