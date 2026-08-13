@@ -1,16 +1,19 @@
-# Welcome to IntelliYaml's documentation!
+# IntelliYaml Documentation
+
+IntelliYaml provides PyYAML helpers for configuration files that need environment-variable expansion, dynamic Python object resolution, and dataclass-backed YAML values.
 
 ## Contents
 
-- [Readme](readme.md)
 - [Installation](installation.md)
 - [Usage](usage.md)
-- [Modules](modules.md)
-- [Contributing](contributing.md)
-- [History](history.md)
+- [API Reference](api.md)
+- [Project README](../README.md)
+- [Contributing](../CONTRIBUTING.md)
+- [History](../HISTORY.md)
 
-## Indices and tables
+## Public Surface
 
-- [Index](genindex)
-- [Module Index](modindex)
-- [Search](search)
+- `YamlObjectLoader`
+- `YamlEnvVariableExpander`
+- `yamldataclass`
+- Console scripts: `intelliyaml` and `yaml`

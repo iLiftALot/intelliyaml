@@ -15,12 +15,12 @@
 # Get a single attribute from the resolved object
 
 # Using "get" key:
-log_dir: !!python/object:intellipath.intellipath.LogPath
+log_dir: !!python/object:intellipath.LogPath
   get: LOGS
 # Result: /var/log
 
 # Using "attr" key (alias for "get"):
-data_dir: !!python/object:intellipath.intellipath.LogPath
+data_dir: !!python/object:intellipath.LogPath
   attr: DATA
 # Result: /var/data
 
@@ -31,18 +31,18 @@ data_dir: !!python/object:intellipath.intellipath.LogPath
 # Call a method on the resolved object
 
 # Call with no arguments:
-default_path: !!python/object:intellipath.intellipath.LogPath
+default_path: !!python/object:intellipath.LogPath
   call: get_default_path
 # Result: obj.get_default_path()
 
 # Call with positional arguments:
-named_path: !!python/object:intellipath.intellipath.LogPath
+named_path: !!python/object:intellipath.LogPath
   call: get_path
   args: ["app.log"]
 # Result: obj.get_path("app.log")
 
 # Call with keyword arguments:
-configured_path: !!python/object:intellipath.intellipath.LogPath
+configured_path: !!python/object:intellipath.LogPath
   call: get_path
   kwargs:
     name: "app.log"
@@ -50,7 +50,7 @@ configured_path: !!python/object:intellipath.intellipath.LogPath
 # Result: obj.get_path(name="app.log", create=True)
 
 # Call with both positional and keyword arguments:
-full_call: !!python/object:intellipath.intellipath.LogPath
+full_call: !!python/object:intellipath.LogPath
   call: build_path
   args: ["logs", "subdir"]
   kwargs:
@@ -71,7 +71,7 @@ callable_obj: !!python/object:some.module.PathFactory
 # Apply operators like /, +, *, etc. (useful for Path operations)
 
 # Division operator (path joining):
-joined_path: !!python/object:intellipath.intellipath.LogPath
+joined_path: !!python/object:intellipath.LogPath
   chain:
     - get: LOGS
     - op: "/"
@@ -125,12 +125,12 @@ nested_value: !!python/object:some.module.ConfigLoader
 # Return a literal value (useful in chains)
 
 # String literal:
-static_path: !!python/object:intellipath.intellipath.LogPath
+static_path: !!python/object:intellipath.LogPath
   value: "/static/path/file.log"
 # Result: "/static/path/file.log"
 
 # Used in operator chains:
-dynamic_path: !!python/object:intellipath.intellipath.LogPath
+dynamic_path: !!python/object:intellipath.LogPath
   chain:
     - get: LOGS
     - op: "/"
@@ -146,7 +146,7 @@ dynamic_path: !!python/object:intellipath.intellipath.LogPath
 # Execute multiple operations sequentially
 
 # Simple chain (attribute + operator):
-filename: !!python/object:intellipath.intellipath.LogPath
+filename: !!python/object:intellipath.LogPath
   chain:
     - get: LOGS
     - op: "/"
@@ -154,7 +154,7 @@ filename: !!python/object:intellipath.intellipath.LogPath
 # Result: /var/log/app.log
 
 # Complex chain (attribute + method + operator):
-complex_path: !!python/object:intellipath.intellipath.LogPath
+complex_path: !!python/object:intellipath.LogPath
   chain:
     - get: LOGS
     - call: resolve
@@ -190,7 +190,7 @@ method_chain: !!python/object:some.module.PathBuilder
 # Use a string expression for concise syntax
 
 # Simple attribute + operator:
-expr_path: !!python/object:intellipath.intellipath.LogPath
+expr_path: !!python/object:intellipath.LogPath
   expr: 'LOGS / "app.log"'
 # Result: obj.LOGS / "app.log"
 
@@ -200,12 +200,12 @@ nested_attr: !!python/object:some.module.Config
 # Result: obj.settings.database.host
 
 # Method calls in expressions:
-method_expr: !!python/object:intellipath.intellipath.LogPath
+method_expr: !!python/object:intellipath.LogPath
   expr: 'LOGS.resolve()'
 # Result: obj.LOGS.resolve()
 
 # Complex expression:
-complex_expr: !!python/object:intellipath.intellipath.LogPath
+complex_expr: !!python/object:intellipath.LogPath
   expr: 'LOGS / "subdir" / "app.log"'
 # Result: obj.LOGS / "subdir" / "app.log"
 
@@ -215,7 +215,7 @@ complex_expr: !!python/object:intellipath.intellipath.LogPath
 # -----------------------------------------------------------------------------
 # Enable debug output for troubleshooting
 
-debug_path: !!python/object:intellipath.intellipath.LogPath
+debug_path: !!python/object:intellipath.LogPath
   _debug: true
   chain:
     - get: LOGS
@@ -234,7 +234,7 @@ handlers:
     class: logging.handlers.RotatingFileHandler
     formatter: standard
     level: DEBUG
-    filename: !!python/object:intellipath.intellipath.LogPath
+    filename: !!python/object:intellipath.LogPath
       chain:
         - get: LOGS
         - op: "/"
@@ -272,12 +272,11 @@ service:
 
 
 # -----------------------------------------------------------------------------
-# 10. LEGACY SYNTAX (Backward Compatible)
+# 10. BUILT-IN OBJECTS
 # -----------------------------------------------------------------------------
-# Original simple format still works
+# If the tag suffix has no dot, the resolver looks up the name in builtins.
 
-legacy_path: !!python/object:intellipath.intellipath.LogPath
-  attr: LOGS
-  args: []
-  kwargs: {}
-# Result: obj.LOGS (for attributes) or obj("LOGS") (for callables)
+int_value: !!python/object:int
+  call: null
+  args: ["42"]
+# Result: int("42")

@@ -1,12 +1,18 @@
 [project]
 name = "intelliyaml"
 version = "0.1.0"
-description = "Custom Yaml object."
+description = "YAML helpers for environment expansion and Python object resolution."
 readme = "README.md"
 authors = [{ name = "Nicholas Corbin", email = "nickcorbin17@yahoo.com" }]
 maintainers = [{ name = "Nicholas Corbin", email = "nickcorbin17@yahoo.com" }]
 classifiers = [
-  # TODO
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 license = "MIT"
 dependencies = [
@@ -22,7 +28,8 @@ requires-python = ">= 3.13"
 
 [project.urls]
 bugs = "https://github.com/iLiftALot/intelliyaml/issues"
-changelog = "https://github.com/iLiftALot/intelliyaml/blob/master/changelog.md"
+changelog = "https://github.com/iLiftALot/intelliyaml/blob/master/HISTORY.md"
+documentation = "https://intelliyaml.readthedocs.io"
 homepage = "https://github.com/iLiftALot/intelliyaml"
 
 [project.scripts]

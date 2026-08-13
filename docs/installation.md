@@ -1,5 +1,7 @@
 # Installation
 
+IntelliYaml requires Python 3.13 or newer.
+
 ## Stable release
 
 To install IntelliYaml, run this command in your terminal:
@@ -16,23 +18,28 @@ pip install intelliyaml
 
 ## From source
 
-The source files for IntelliYaml can be downloaded from the [Github repo](https://github.com/iLiftALot/intelliyaml).
+The source files for IntelliYaml can be downloaded from the [GitHub repo](https://github.com/iLiftALot/intelliyaml).
 
-You can either clone the public repository:
-
-```sh
-git clone git://github.com/iLiftALot/intelliyaml
-```
-
-Or download the [tarball](https://github.com/iLiftALot/intelliyaml/tarball/master):
+Clone the public repository:
 
 ```sh
-curl -OJL https://github.com/iLiftALot/intelliyaml/tarball/master
-```
-
-Once you have a copy of the source, you can install it with:
-
-```sh
+git clone https://github.com/iLiftALot/intelliyaml.git
 cd intelliyaml
-uv pip install .
+```
+
+Install the project and development dependencies with `uv`:
+
+```sh
+uv sync --dev
+```
+
+This checkout uses local editable sources for some sibling packages under `[tool.uv.sources]`. If you are not using that local workspace layout, install those packages from PyPI or adjust the local source paths before syncing.
+
+## Development Checks
+
+```sh
+uv run ruff format --check .
+uv run ruff check .
+uv run pyright
+uv run pytest
 ```

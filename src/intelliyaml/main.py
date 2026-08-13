@@ -12,7 +12,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, ClassVar, Hashable, Protocol, Self, Sequence, TypeVar
 
-from pkg_registry import lazy_import
+from intellipath import LogPath
 from yaml import (
     Dumper,
     FullLoader,
@@ -25,10 +25,6 @@ from yaml import (
     UnsafeLoader,
     load,
 )
-
-
-intellipath = lazy_import("intellipath")
-intellilog = lazy_import("intellilog")
 
 
 YAML_TAG_PREFIX = "tag:yaml.org,2002:"
@@ -196,14 +192,12 @@ class YAMLBaseHandler:
     yaml_flow_style: ClassVar[bool | None] = None
     regex_pattern: ClassVar[re.Pattern[str] | None] = None
 
-    default_config_file: ClassVar[Path] = intellipath.LogPath.CONFIG
+    default_config_file: ClassVar[Path] = LogPath.CONFIG
 
     def __init__(self, config_file: Path | None = None) -> None:
         self.config_file = config_file or self.default_config_file
         self._stream: TextIOWrapper | None = None
         self.data: dict[str, Any] = {}
-
-        self.log = intellilog.initLog("intelliyaml", verbose=True, console_level="DEBUG")
 
     @property
     def stream(self) -> TextIOWrapper:
@@ -437,8 +431,7 @@ def main() -> None:
     with YamlObjectLoader() as yaml_handler:
         parsed_config = yaml_handler.data
 
-    logger = intellilog.initLog("intelliyaml.main")
-    logger.debug(parsed_config)
+    print(json.dumps(parsed_config, indent=4))
 
 
 if __name__ == "__main__":
