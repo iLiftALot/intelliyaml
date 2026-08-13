@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from intellifunctools import functools
+import ast
 import operator
 import re
+from collections.abc import Callable, Hashable, Mapping, Sequence
+from functools import singledispatchmethod
+from typing import Any, ClassVar, Literal, Self
 
-# from dataclasses import dataclass, field
-from pydantic import BaseModel, Field, model_validator
-from typing import Any, ClassVar, Literal, Self, cast, get_args
-from collections.abc import Callable, Mapping, Sequence
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 
 # ============================================================================
@@ -20,7 +20,9 @@ OpValue = Literal["/", "+", "-", "*", "//", "%", "**", "@", "|", "&"]
 
 
 class OperationBase(BaseModel):
-    debug: bool = Field(default=False)
+    model_config = ConfigDict(extra="forbid")
+
+    debug: bool = Field(default=False, validation_alias=AliasChoices("debug", "_debug"))
 
 
 class ValueOperation(OperationBase):
@@ -32,7 +34,7 @@ class ValueOperation(OperationBase):
 class GetOperation(OperationBase):
     """Get attribute operation."""
 
-    get: str
+    get: str = Field(validation_alias=AliasChoices("get", "attr"))
 
 
 class CallOperation(OperationBase):
@@ -47,7 +49,7 @@ class OpOperation(OperationBase):
     """Binary operator operation."""
 
     op: OpValue
-    value: Any | None = None
+    value: Any = Field(validation_alias=AliasChoices("value", "right"))
 
 
 class IndexOperation(OperationBase):
@@ -87,17 +89,21 @@ class Operation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation(self) -> Self:
-        kind = self.kind
-        op = self.operation
+        operation_types: dict[OperationKind, type[OperationType]] = {
+            "get": GetOperation,
+            "call": CallOperation,
+            "op": OpOperation,
+            "index": IndexOperation,
+            "value": ValueOperation,
+            "chain": ChainOperation,
+            "expr": ExpressionOperation,
+        }
+        expected_type = operation_types[self.kind]
 
-        if kind == "chain" and not isinstance(op, ChainOperation):
-            raise ValueError(
-                f"Operation must be a list of SingleOperationType for kind 'chain'\n...got {type(op)} instead\n...with value:\n{op}"
-            )
-
-        if kind != "chain" and isinstance(op, ChainOperation):
-            raise ValueError(
-                f"Operation cannot be a list of SingleOperationType for non-'chain' kinds\n...got {type(op)} instead\n...with value:\n{op}"
+        if not isinstance(self.operation, expected_type):
+            raise TypeError(
+                f"Operation kind {self.kind!r} requires {expected_type.__name__}, "
+                f"got {type(self.operation).__name__}"
             )
 
         return self
@@ -111,7 +117,7 @@ class ExpressionResolver:
         - Attribute access: {"get": "attr_name"}
         - Method calls: {"call": "method_name", "args": [...], "kwargs": {...}}
         - Chained operations: {"chain": [{"get": "attr"}, {"call": "method"}]}
-        - Binary operators: {"op": "/", "right": "value"} (for path joining, etc.)
+        - Binary operators: {"op": "/", "value": "app.log"} (for path joining, etc.)
         - Indexing: {"index": "key"} or {"index": 0}
         - Direct value: {"value": "literal_value"}
 
@@ -121,7 +127,7 @@ class ExpressionResolver:
           chain:
             - get: LOGS
             - op: "/"
-            - value: "app.log"
+              value: "app.log"
     """
 
     # Supported binary operators
@@ -141,8 +147,8 @@ class ExpressionResolver:
     def __init__(self, obj: object) -> None:
         self.obj = obj
 
-    @functools.singledispatchmethod
-    def _resolve(self, operation) -> Any:
+    @singledispatchmethod
+    def _resolve(self, operation: object) -> Any:
         """
         Resolve the object using the context configuration.
 
@@ -173,95 +179,95 @@ class ExpressionResolver:
 
         Supports expressions like:
             - "LOGS"           -> getattr(obj, "LOGS")
-            - "LOGS / app.log" -> getattr(obj, "LOGS") / "app.log"
+            - 'LOGS / "app.log"' -> getattr(obj, "LOGS") / "app.log"
             - "method()"       -> obj.method()
-            - "attr.method(x)" -> obj.attr.method("x")
+            - 'attr.method("x")' -> obj.attr.method("x")
         """
         return ExpressionParser(operation.expr, debug=operation.debug).evaluate(self.obj)
 
-    @_resolve.register_all(
-        ValueOperation, GetOperation, CallOperation, OpOperation, IndexOperation
-    )
-    def _resolve_single(self, operation) -> Any:
-        """Resolve a single operation from context."""
+    @_resolve.register(GetOperation)
+    def _get(self, operation: GetOperation) -> Any:
+        """Attribute access"""
+        attr_name = operation.get
+        result = getattr(self.obj, attr_name)
 
-        # Attribute access
-        if isinstance(operation, GetOperation):
-            attr_name = operation.get
-            result = getattr(self.obj, attr_name)
+        if operation.debug:
+            print(f"  getattr({self.obj}, {attr_name!r}) -> {result}")
 
-            if operation.debug:
-                print(f"  getattr({self.obj}, {attr_name!r}) -> {result}")
+        return result
 
-            return result
+    @_resolve.register(CallOperation)
+    def _call(self, operation: CallOperation) -> Any:
+        """Method/callable invocation"""
+        method_name = operation.call
+        args = operation.args
+        kwargs = operation.kwargs
 
-        # Method/callable invocation
-        if isinstance(operation, CallOperation):
-            method_name = operation.call
-            args = operation.args if hasattr(operation, "args") else ()
-            kwargs = operation.kwargs if hasattr(operation, "kwargs") else {}
+        if method_name is None:
+            if not callable(self.obj):
+                raise TypeError(f"Object {self.obj!r} is not callable")
+            # Call the object itself
+            result = self.obj(*args, **kwargs)
+            call_description = repr(self.obj)
+        else:
+            # Call a method on the object
+            method = getattr(self.obj, method_name)
+            result = method(*args, **kwargs)
+            call_description = f"{self.obj}.{method_name}"
 
-            if method_name is None:
-                assert callable(self.obj), f"Object {self.obj} is not callable"
-                # Call the object itself
-                result = self.obj(*args, **kwargs)
-            else:
-                # Call a method on the object
-                method = getattr(self.obj, method_name)
-                result = method(*args, **kwargs)
+        if operation.debug:
+            print(f"  {call_description}(*{args}, **{kwargs}) -> {result}")
 
-            if operation.debug:
-                print(f"  {self.obj}.{method_name}(*{args}, **{kwargs}) -> {result}")
+        return result
 
-            return result
+    @_resolve.register(OpOperation)
+    def _op(self, operation: OpOperation) -> Any:
+        """Binary operator"""
+        op_name = operation.op
+        value = operation.value
+        op_func = self.OPERATORS.get(op_name)
 
-        # Binary operator
-        if isinstance(operation, OpOperation):
-            op_name = operation.op
-            value = operation.value
-            op_func = self.OPERATORS.get(op_name)
+        if op_func is None:
+            raise ValueError(f"Unsupported operator: {op_name}")
 
-            if op_func is None:
-                raise ValueError(f"Unsupported operator: {op_name}")
+        result = op_func(self.obj, value)
 
-            result = op_func(self.obj, value)
+        if operation.debug:
+            print(f"  {self.obj} {op_name} {value} -> {result}")
 
-            if operation.debug:
-                print(f"  {self.obj} {op_name} {value} -> {result}")
+        return result
 
-            return result
+    @_resolve.register(IndexOperation)
+    def _index(self, operation: IndexOperation) -> Any:
+        """Indexing"""
+        key = operation.index
 
-        # Indexing
-        if isinstance(operation, IndexOperation):
-            key = operation.index
-
-            try:
-                if isinstance(self.obj, Mapping):
+        try:
+            if isinstance(self.obj, Mapping):
+                result = self.obj[key]
+            elif isinstance(self.obj, Sequence):
+                if not isinstance(key, int):
+                    key = self.obj.index(key)
                     result = self.obj[key]
-                elif isinstance(self.obj, Sequence):
-                    if not isinstance(key, int):
-                        key = self.obj.index(key, 0, -1)
-                        result = self.obj[key]
-                    else:
-                        result = self.obj[key]
                 else:
-                    raise TypeError(f"Object {self.obj!r} is not indexable with key {key!r}")
-            except (KeyError, IndexError, ValueError, TypeError) as e:
-                raise ValueError(f"Failed to index {self.obj!r} with key {key!r}: {e}") from e
+                    result = self.obj[key]
+            else:
+                raise TypeError(f"Object {self.obj!r} is not indexable with key {key!r}")
+        except (KeyError, IndexError, ValueError, TypeError) as e:
+            raise ValueError(f"Failed to index {self.obj!r} with key {key!r}: {e}") from e
 
-            if operation.debug:
-                print(f"  {self.obj}[{key!r}] -> {result}")
+        if operation.debug:
+            print(f"  {self.obj}[{key!r}] -> {result}")
 
-            return result
+        return result
 
-        # Literal value (passthrough)
-        if isinstance(operation, ValueOperation):
-            if operation.debug:
-                print(f"  Returning literal value: {operation.value!r}")
+    @_resolve.register(ValueOperation)
+    def _value(self, operation: ValueOperation) -> Any:
+        """Literal value (passthrough)"""
+        if operation.debug:
+            print(f"  Returning literal value: {operation.value!r}")
 
-            return operation.value
-
-        raise ValueError(f"Unknown operation: {operation}")
+        return operation.value
 
 
 class ExpressionParser:
@@ -269,7 +275,7 @@ class ExpressionParser:
     Parse and evaluate simple Python-like expressions.
 
     Grammar (simplified):
-        expr     := term (('+' | '-' | '/' | '*') term)*
+        expr     := term (OP term)*
         term     := primary ('.' IDENT | '(' args ')' | '[' key ']')*
         primary  := IDENT | STRING | NUMBER
     """
@@ -277,20 +283,34 @@ class ExpressionParser:
     # Token patterns
     TOKEN_PATTERN = re.compile(
         r"""
-        (?P<STRING>"[^"]*"|'[^']*')         |  # String literals
+        (?P<STRING>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*') |  # String literals
         (?P<NUMBER>\d+(?:\.\d+)?)           |  # Numbers
         (?P<IDENT>[a-zA-Z_][a-zA-Z0-9_]*)   |  # Identifiers
-        (?P<OP>[+\-*/|&@])                  |  # Operators
+        (?P<OP>\*\*|//|[+\-*/%|&@])        |  # Operators
         (?P<DOT>\.)                         |  # Dot accessor
         (?P<LPAREN>\()                      |  # Open paren
         (?P<RPAREN>\))                      |  # Close paren
         (?P<LBRACKET>\[)                    |  # Open bracket
         (?P<RBRACKET>\])                    |  # Close bracket
         (?P<COMMA>,)                        |  # Comma
-        (?P<WS>\s+)                            # Whitespace (ignored)
+        (?P<WS>\s+)                         |  # Whitespace (ignored)
+        (?P<MISMATCH>.)                        # Invalid input
     """,
         re.VERBOSE,
     )
+
+    OPERATOR_PRECEDENCE: ClassVar[dict[OpValue, int]] = {
+        "|": 1,
+        "&": 2,
+        "+": 3,
+        "-": 3,
+        "*": 4,
+        "/": 4,
+        "//": 4,
+        "%": 4,
+        "@": 4,
+        "**": 5,
+    }
 
     def __init__(self, expr: str, debug: bool = False) -> None:
         self.expr = expr
@@ -300,12 +320,20 @@ class ExpressionParser:
 
     def _tokenize(self, expr: str) -> list[tuple[str, str]]:
         """Tokenize the expression."""
-        tokens = []
+        tokens: list[tuple[str, str]] = []
+
         for match in self.TOKEN_PATTERN.finditer(expr):
-            for name, value in match.groupdict().items():
-                if value is not None and name != "WS":
-                    tokens.append((name, value))
-                    break
+            kind = match.lastgroup
+            value = match.group()
+
+            if kind == "MISMATCH":
+                raise SyntaxError(
+                    f"Unexpected character {value!r} at position {match.start()}"
+                )
+
+            if kind is not None and kind != "WS":
+                tokens.append((kind, value))
+
         return tokens
 
     def _peek(self) -> tuple[str, str] | None:
@@ -328,24 +356,36 @@ class ExpressionParser:
         """Evaluate the expression with the given object as context."""
         if self.debug:
             print(f"Evaluating expression: {self.expr}")
-        return self._parse_expr(obj)
 
-    def _parse_expr(self, obj: object) -> Any:
-        """Parse additive/multiplicative expressions."""
+        result = self._parse_expr(obj)
+        if token := self._peek():
+            raise SyntaxError(f"Unexpected token: {token}")
+
+        return result
+
+    def _parse_expr(self, obj: object, min_precedence: int = 0) -> Any:
+        """Parse a binary expression using standard operator precedence."""
         left = self._parse_term(obj)
-        token = self._peek()
-        while token and token[0] == "OP":
-            op = self._advance()[1]
-            assert op in get_args(OpValue), f"Unsupported operator: {op}"
-            right = self._parse_term(obj)
-            op_func = ExpressionResolver.OPERATORS.get(cast(OpValue, op))
-            if op_func:
-                left = op_func(left, right)
-            else:
-                raise ValueError(f"Unknown operator: {op}")
-            token = self._peek()
+
+        while (token := self._peek()) and token[0] == "OP":
+            op = token[1]
+            op_value = self._as_operator(op)
+            precedence = self.OPERATOR_PRECEDENCE[op_value]
+            if precedence < min_precedence:
+                break
+
+            self._advance()
+            next_precedence = precedence if op_value == "**" else precedence + 1
+            right = self._parse_expr(obj, next_precedence)
+            left = ExpressionResolver.OPERATORS[op_value](left, right)
 
         return left
+
+    @staticmethod
+    def _as_operator(value: str) -> OpValue:
+        if value not in ExpressionResolver.OPERATORS:
+            raise ValueError(f"Unsupported operator: {value}")
+        return value
 
     def _parse_term(self, obj: object) -> Any:
         """Parse a term with accessor chains."""
@@ -361,19 +401,16 @@ class ExpressionParser:
                 self._advance()
                 ident = self._expect("IDENT")
                 result = getattr(result, ident)
-
             elif token[0] == "LPAREN":
                 self._advance()
                 args = self._parse_args(obj)
                 self._expect("RPAREN")
                 result = result(*args)
-
             elif token[0] == "LBRACKET":
                 self._advance()
                 key = self._parse_primary(obj)
                 self._expect("RBRACKET")
                 result = result[key]
-
             else:
                 break
 
@@ -390,11 +427,11 @@ class ExpressionParser:
             # First identifier resolves against the object
             return getattr(obj, name)
 
-        elif token[0] == "STRING":
+        if token[0] == "STRING":
             value = self._advance()[1]
-            return value[1:-1]  # Strip quotes
+            return ast.literal_eval(value)
 
-        elif token[0] == "NUMBER":
+        if token[0] == "NUMBER":
             value = self._advance()[1]
             return float(value) if "." in value else int(value)
 
@@ -412,8 +449,14 @@ class ExpressionParser:
         return args
 
 
-def operation_builder(ctx: dict) -> Operation:
+def operation_builder(ctx: Mapping[Hashable, Any]) -> Operation:
     """Build an Operation object from a context dictionary."""
+
+    non_string_keys = [key for key in ctx if not isinstance(key, str)]
+    if non_string_keys:
+        raise ValueError(f"Operation context keys must be strings: {non_string_keys!r}")
+
+    operation_ctx = {key: value for key, value in ctx.items() if isinstance(key, str)}
 
     op_type_map: dict[OperationKind, type[OperationType]] = {
         "get": GetOperation,
@@ -424,20 +467,60 @@ def operation_builder(ctx: dict) -> Operation:
         "value": ValueOperation,
     }
 
-    if "chain" in ctx:
-        chain_ops: list[OperationType] = [
-            operation_builder(op_ctx).operation for op_ctx in ctx["chain"]
+    primary_keys = [
+        key
+        for key in ("chain", "get", "attr", "call", "op", "index", "expr")
+        if key in operation_ctx
+    ]
+    if not primary_keys and "value" in operation_ctx:
+        primary_keys.append("value")
+
+    if len(primary_keys) != 1:
+        raise ValueError(
+            "Operation context must contain exactly one operation key; "
+            f"got {primary_keys or 'none'}"
+        )
+
+    key = primary_keys[0]
+
+    if key == "chain":
+        raw_chain = operation_ctx["chain"]
+        if not isinstance(raw_chain, Sequence) or isinstance(
+            raw_chain, (str, bytes, bytearray)
+        ):
+            raise ValueError("The 'chain' operation must be a sequence of mappings")
+
+        invalid_steps = [
+            index for index, step in enumerate(raw_chain) if not isinstance(step, Mapping)
         ]
-        return Operation(kind="chain", operation=ChainOperation(chain=chain_ops))
+        if invalid_steps:
+            raise ValueError(
+                "Each chain step must be an operation mapping; "
+                f"invalid steps: {invalid_steps}"
+            )
 
-    for key, cls in op_type_map.items():
-        if key in ctx:
-            return Operation(kind=key, operation=cls(**ctx))
+        chain_ops: list[OperationType] = [
+            operation_builder(op_ctx).operation for op_ctx in raw_chain
+        ]
+        chain_ctx = dict(operation_ctx)
+        chain_ctx["chain"] = chain_ops
+        return Operation(kind="chain", operation=ChainOperation(**chain_ctx))
 
-    raise ValueError(f"Unknown operation context: {ctx}")
+    kind_by_key: dict[str, OperationKind] = {
+        "get": "get",
+        "attr": "get",
+        "call": "call",
+        "op": "op",
+        "index": "index",
+        "expr": "expr",
+        "value": "value",
+    }
+    kind = kind_by_key[key]
+    operation_type = op_type_map[kind]
+    return Operation(kind=kind, operation=operation_type(**operation_ctx))
 
 
-def resolve_object(ctx: dict, obj: object) -> Any:
+def resolve_object(ctx: Mapping[Hashable, Any], obj: object) -> Any:
     """Resolve an object based on the provided operation context."""
 
     op_ctx = operation_builder(ctx)
